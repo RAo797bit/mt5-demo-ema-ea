@@ -1,0 +1,13 @@
+﻿MetaEditor compile log (paths shortened)
+
+mql5\EMA_Cross_Demo_EA.mq5 : information: compiling mql5\EMA_Cross_Demo_EA.mq5
+mql5\EMA_Cross_Demo_EA.mq5 : information: including <MQL5>\Include\Trade\Trade.mqh
+<MQL5>\Include\Trade\Trade.mqh : information: including <MQL5>\Include\Object.mqh
+<MQL5>\Include\Object.mqh : information: including <MQL5>\Include\StdLibErr.mqh
+<MQL5>\Include\Trade\Trade.mqh : information: including <MQL5>\Include\Trade\OrderInfo.mqh
+<MQL5>\Include\Trade\Trade.mqh : information: including <MQL5>\Include\Trade\HistoryOrderInfo.mqh
+<MQL5>\Include\Trade\Trade.mqh : information: including <MQL5>\Include\Trade\PositionInfo.mqh
+<MQL5>\Include\Trade\Trade.mqh : information: including <MQL5>\Include\Trade\DealInfo.mqh
+ : information: generating code
+ : information: code generated
+Result: 0 errors, 0 warnings, 1257 ms elapsed, cpu='X64 Regular'
