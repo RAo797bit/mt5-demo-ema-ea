@@ -147,16 +147,30 @@ bool SpreadOk()
    return spread <= InpMaxSpreadPoints;
 }
 
-// Keeps SL/TP outside the broker's minimum stop distance.
-double EnforceStopsLevel(const double entry, const double level, const bool isBuy, const bool isSL)
+// Minimum distance a stop can sit from the closing price, per the broker's
+// stops level and freeze level, plus a small safety margin. On fast
+// timeframes ATR alone can be smaller than this, so callers must floor
+// their SL/TP distance with it too, not just clamp the final price.
+double MinStopDistance()
 {
-   double minDist = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
-   if(minDist <= 0.0) return NormalizeDouble(level, _Digits);
-   double dist = MathAbs(entry - level);
+   long stopsLevel  = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+   long freezeLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL);
+   long minPoints   = MathMax(stopsLevel, freezeLevel);
+   return (double)(minPoints + 2) * _Point;   // +2 points of margin
+}
+
+// Keeps SL/TP outside the broker's minimum stop distance, measured from the
+// price the position will actually close at: Bid for a BUY, Ask for a SELL.
+// Using the entry price here (Ask for a BUY) undercounts the distance by
+// the spread and can still get the order rejected.
+double EnforceStopsLevel(const double closePrice, const double level, const bool isBuy, const bool isSL)
+{
+   double minDist = MinStopDistance();
+   double dist = MathAbs(closePrice - level);
    if(dist >= minDist) return NormalizeDouble(level, _Digits);
    // push the level out to the minimum distance, on the correct side
    bool below = (isBuy && isSL) || (!isBuy && !isSL);
-   return NormalizeDouble(below ? entry - minDist : entry + minDist, _Digits);
+   return NormalizeDouble(below ? closePrice - minDist : closePrice + minDist, _Digits);
 }
 
 void OpenPosition(const int signal, const double atr)
@@ -168,11 +182,15 @@ void OpenPosition(const int signal, const double atr)
    }
 
    bool   isBuy = (signal > 0);
-   double entry = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   double slDist = atr * InpSLATRMult;
-   double tpDist = slDist * InpRewardRisk;
-   double sl = EnforceStopsLevel(entry, isBuy ? entry - slDist : entry + slDist, isBuy, true);
-   double tp = EnforceStopsLevel(entry, isBuy ? entry + tpDist : entry - tpDist, isBuy, false);
+   double entry     = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double closePrice = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+   double minDist = MinStopDistance();
+   double slDist = MathMax(atr * InpSLATRMult, minDist);
+   double tpDist = MathMax(slDist * InpRewardRisk, minDist);
+
+   double sl = EnforceStopsLevel(closePrice, isBuy ? entry - slDist : entry + slDist, isBuy, true);
+   double tp = EnforceStopsLevel(closePrice, isBuy ? entry + tpDist : entry - tpDist, isBuy, false);
    double lots = NormalizeLots(InpLots);
 
    bool ok = isBuy ? g_trade.Buy(lots, _Symbol, 0.0, sl, tp, "EMA demo")
