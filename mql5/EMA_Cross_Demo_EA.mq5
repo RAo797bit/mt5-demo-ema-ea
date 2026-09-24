@@ -193,6 +193,23 @@ void OpenPosition(const int signal, const double atr)
    double tp = EnforceStopsLevel(closePrice, isBuy ? entry + tpDist : entry - tpDist, isBuy, false);
    double lots = NormalizeLots(InpLots);
 
+   // Check the position is actually affordable before sending it. Sending
+   // an order the account cannot margin just trades one broker rejection
+   // for another; skipping cleanly is the honest behaviour here.
+   double marginNeeded = 0.0;
+   ENUM_ORDER_TYPE orderType = isBuy ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+   if(!OrderCalcMargin(orderType, _Symbol, lots, entry, marginNeeded))
+   {
+      PrintFormat("Signal skipped: margin calculation failed, error %d", GetLastError());
+      return;
+   }
+   double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+   if(marginNeeded > freeMargin)
+   {
+      PrintFormat("Signal skipped: needs %.2f margin, only %.2f free", marginNeeded, freeMargin);
+      return;
+   }
+
    bool ok = isBuy ? g_trade.Buy(lots, _Symbol, 0.0, sl, tp, "EMA demo")
                    : g_trade.Sell(lots, _Symbol, 0.0, sl, tp, "EMA demo");
    if(!ok)
